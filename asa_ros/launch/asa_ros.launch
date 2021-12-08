@@ -1,12 +1,25 @@
 <launch>
-  <!-- Account credentials for Azure Spatial Anchors account. -->
-  <arg name="account_id" default="" />
-  <arg name="account_key" default="" />
-  <arg name="account_domain" default="mixedreality.azure.com" />
+
+  <!-- Azure Spatial Anchor Ros Wrapper: https://github.com/microsoft/azure_spatial_anchors_ros -->
+  <!-- Enter your account data here -->
+  <arg name="account_id" value=""/>
+  <arg name="account_key" value=""/>
+  <arg name="account_domain" value="" />
+  
+  <!-- Enter topic names and frame ids for robot camera and map -->
+
+  <arg name="image" default="/F1/image_rect"/>
+  <arg name="camera_info" default="/F1/camera_info"/>
+  <arg name="camera_frame_id" default="" />
+
+  <arg name="world_frame_id" default="map" />
+  <arg name="tf_lookup_timeout" value="0.5" />
+
+  <arg name="activate_interface_level_logging" default="true" />
 
   <!-- ID of the anchor to search for on start-up. Can be comma-separated list. -->
   <arg name="anchor_id" default="" />
-
+  
   <!-- Frame ID to use for found anchors. If set to blank, the UUID of the anchor will be used. -->
   <arg name="anchor_frame_id" default="" />
 
@@ -17,18 +30,18 @@
   <arg name="subscriber_queue_size" default="1"/>
 
   <!-- If true, query the last anchor id that was created from this machine. -->
-  <arg name="query_last_anchor_id_from_cache" default="true"/>
+  <arg name="query_last_anchor_id_from_cache" default="false"/>
 
   <node name="asa_ros" type="asa_ros_node" pkg="asa_ros" output="screen" clear_params="true">
-    <remap from="image" to="/camera/fisheye1_rect/image" />
-    <remap from="camera_info" to="/camera/fisheye1_rect/camera_info" />
+    <remap from="image" to= "$(arg image)" />    
+    <remap from="camera_info" to= "$(arg camera_info)" />
 
     <!-- The frame ID of your world/odometry frame. Should be static relative to, well, the world. -->
-    <param name="world_frame_id" value="camera_odom_frame" />
+    <param name="world_frame_id" value="$(arg world_frame_id)" />
     <!-- Optical frame of the camera, z facing "forward" (out of the camera frame). -->
-    <param name="camera_frame_id" value="camera_fisheye1_optical_frame" />
+    <param name="camera_frame_id" value="$(arg camera_frame_id)" />
     <!-- Timeout to wait for TF lookups to finish. If you get a lot of TF errors but still smome valid lookups, try increasing this. -->
-    <param name="tf_lookup_timeout" value="0.1" />
+    <param name="tf_lookup_timeout" value="$(arg tf_lookup_timeout)" />
 
     <param name="account_id" value="$(arg account_id)"/>
     <param name="account_key" value="$(arg account_key)"/>
@@ -36,6 +49,7 @@
 
     <param name="anchor_frame_id" value="$(arg anchor_frame_id)" />
 
+    <param name="activate_interface_level_logging" value="$(arg activate_interface_level_logging)" />
     <param name="use_approx_sync_policy" value="$(arg use_approx_sync_policy)"/>
     <param name="subscriber_queue_size" value="$(arg subscriber_queue_size)"/>
 

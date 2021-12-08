@@ -1,0 +1,27 @@
+<launch>
+
+  <!--- Input args -->
+  <arg name="account_id" default=""/>
+  <arg name="account_key" default=""/>
+  <arg name="account_domain" default="" />  
+  <arg name="image" default="/F1/image_rect"/>
+  <arg name="camera_info" default="/F1/camera_info"/>
+  <arg name="path" default="/path"/>
+
+  <!--- ASA Wrapper -->
+  <include file="$(find asa_ros)/launch/asa_ros.launch">
+    <arg name="account_id" value="$(arg account_id)" />
+    <arg name="account_key" value="$(arg account_key)" />
+    <arg name="account_domain" value="$(arg account_domain)" />
+    <arg name="image" value="asa/image"/>
+    <arg name="camera_info" value="asa/camera_info"/>
+  </include>      
+
+  <!--- Use path graph to create tf2 -->
+  <node pkg="asa_ros" type="asa_path.py" name="asa_path" output="screen">
+    <remap from="image" to="$(arg image)" />
+    <remap from="camera_info" value="$(arg camera_info)" />   
+    <remap from="path" to="$(arg path)" />    
+  </node>  
+
+</launch>
