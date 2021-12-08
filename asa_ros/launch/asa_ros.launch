@@ -2,9 +2,9 @@
 
   <!-- Azure Spatial Anchor Ros Wrapper: https://github.com/microsoft/azure_spatial_anchors_ros -->
   <!-- Enter your account data here -->
-  <arg name="account_id" value=""/>
-  <arg name="account_key" value=""/>
-  <arg name="account_domain" value="" />
+  <arg name="account_id" default=""/>
+  <arg name="account_key" default=""/>
+  <arg name="account_domain" default="" />
   
   <!-- Enter topic names and frame ids for robot camera and map -->
 

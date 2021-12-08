@@ -20,7 +20,7 @@
   <!--- Use path graph to create tf2 -->
   <node pkg="asa_ros" type="asa_path.py" name="asa_path" output="screen">
     <remap from="image" to="$(arg image)" />
-    <remap from="camera_info" value="$(arg camera_info)" />   
+    <remap from="camera_info" to="$(arg camera_info)" />   
     <remap from="path" to="$(arg path)" />    
   </node>  
 

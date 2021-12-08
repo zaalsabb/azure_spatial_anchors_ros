@@ -17,9 +17,9 @@
   </include>     
 
   <!--- Use RTABMAP mapData graph to create tf2 -->
-  <node pkg="asa_ros" to="asa_rtabmap.py" name="asa_rtabmap" output="screen">
+  <node pkg="asa_ros" type="asa_rtabmap.py" name="asa_rtabmap" output="screen">
     <remap from="image" to="$(arg image)" />
-    <remap from="camera_info" value="$(arg camera_info)" /> 
+    <remap from="camera_info" to="$(arg camera_info)" /> 
     <remap from="mapData" to="$(arg mapData)" />    
   </node>
 
