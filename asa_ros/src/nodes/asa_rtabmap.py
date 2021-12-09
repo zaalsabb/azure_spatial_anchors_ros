@@ -10,6 +10,7 @@ from std_msgs.msg import String
 from asa_ros_msgs.msg import *
 from asa_ros_msgs.srv import *
 from rtabmap_ros.msg import *
+from rtabmap_ros.srv import *
 from nav_msgs.msg import Path
 from sensor_msgs.msg import CompressedImage, Image, CameraInfo
 import cv_bridge
@@ -23,7 +24,7 @@ class Node:
         self.listener = tf.TransformListener()
         self.br = tf.TransformBroadcaster()
         self.buffer_rate = 10.0
-        self.buffer_size = 100
+        self.buffer_size = 1000
         self.images_buffer = []
         self.caminfo = None
         self.path = Path()
@@ -31,40 +32,43 @@ class Node:
         self.mapToOdom.header.frame_id = 'map'
         self.mapToOdom.child_frame_id = 'odom2'
 
-        rospy.Subscriber('mapData', MapData, self.callback1)
-        rospy.Subscriber('image', Image, self.callback2)
+        # rospy.Subscriber('mapData', MapData, self.callback1)
+        rospy.Subscriber('image', CompressedImage, self.callback2)
         rospy.Subscriber('camera_info', CameraInfo, self.callback3)
 
         self.pub1 = rospy.Publisher('asa/image', Image, queue_size=1)
         self.pub2 = rospy.Publisher('asa/camera_info', CameraInfo, queue_size=1)
+        self.pub3 = rospy.Publisher('/HL2/create_anchor2', String, queue_size=1)
 
-        while not rospy.is_shutdown():
-            self.main_loop()
-            rospy.sleep(0.01)
+        rospy.Subscriber('/HL2/create_anchor', String, self.handle_request)
+
+        # while not rospy.is_shutdown():
+        #     self.main_loop()
+        #     rospy.sleep(0.01)
 
         rospy.spin()
 
-    def main_loop(self):
+    def add_images_to_asa_buffer(self,mapToOdom):
         if len(self.images_buffer) == 0:
             return
         if self.caminfo is None:
             return
-        # img_compressed = self.images_buffer[-1]
 
-        # dt = abs(ps.header.stamp.to_sec() - img_compressed.header.stamp.to_sec())
-
-        abandoned_images = []
+        # abandoned_images = []
         for img_compressed in self.images_buffer:
             ps = self.interpolate_pose(self.path, img_compressed.header.stamp)
             if ps is None:
-                abandoned_images.append(img_compressed)
+                # abandoned_images.append(img_compressed)
                 continue
             cv_bridge_ = cv_bridge.CvBridge()            
-            img = img_compressed
+            img_cv2 = cv_bridge_.compressed_imgmsg_to_cv2(img_compressed, desired_encoding="passthrough")
+            img = cv_bridge_.cv2_to_imgmsg(img_cv2, encoding="bgr8")
             img.header.stamp = ps.header.stamp
             img.header.frame_id = 'asa_camera'
             self.pub1.publish(img)
 
+            self.mapToOdom.header.stamp = img_compressed.header.stamp
+            self.mapToOdom.transform = mapToOdom
             self.br.sendTransformMessage(self.mapToOdom)
 
             self.br.sendTransform((ps.pose.position.x, ps.pose.position.y, ps.pose.position.z),
@@ -81,19 +85,14 @@ class Node:
             
             self.caminfo.header.stamp = ps.header.stamp
             self.pub2.publish(self.caminfo)
-            # self.images_buffer.pop(self.images_buffer.index(img_compressed))
         
-        self.images_buffer = abandoned_images        
+        # self.images_buffer = abandoned_images        
 
     def callback1(self,msg):
         p = PoseStamped()
         p.pose = msg.nodes[0].pose
         p.header.stamp = rospy.Time(msg.nodes[0].stamp)
         self.path.poses.append(p)
-
-
-        self.mapToOdom.header.stamp = rospy.Time(msg.nodes[0].stamp)
-        self.mapToOdom.transform = msg.graph.mapToOdom
 
     def callback2(self,msg):
         if len(self.images_buffer) > 0:
@@ -106,6 +105,25 @@ class Node:
     def callback3(self,msg):
         self.caminfo = msg
 
+    def handle_request(self, req):
+        
+        srv = rospy.ServiceProxy('/asa_ros/reset', Empty)
+        srv()           
+
+        req2 = GetMapRequest(global_=True,optimized=True,graphOnly=False)
+        srv = rospy.ServiceProxy('/rtabmap/rtabmap/get_map_data', GetMap)
+        res2 = srv(req2)
+        mapToOdom = res2.data.graph.mapToOdom
+        for node,pose in zip(res2.data.nodes,res2.data.graph.poses):
+            p = PoseStamped()
+            p.pose = pose
+            p.header.stamp = rospy.Time(node.stamp)
+            self.path.poses.append(p)
+
+        self.add_images_to_asa_buffer(mapToOdom)
+
+        self.pub3.publish(String())
+        
     def interpolate_pose(self, path, stamp, frame_id='odom2'):
         if path is None or len(path.poses) == 0:
             return
@@ -118,8 +136,8 @@ class Node:
             pose2 = path.poses[i+1]
             t1 = pose1.header.stamp.to_sec()
             t2 = pose2.header.stamp.to_sec()
-            if t >= t1 and t <= t2:
-                dt = t2 - t1
+            dt = t2 - t1
+            if t >= t1 and t <= t2 and dt>0:                
                 w = (t - t1) / dt
                 ps.pose.position.x = pose1.pose.position.x + (pose2.pose.position.x - pose1.pose.position.x) * w
                 ps.pose.position.y = pose1.pose.position.y + (pose2.pose.position.y - pose1.pose.position.y) * w
